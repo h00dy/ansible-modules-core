@@ -92,6 +92,9 @@ EXAMPLES = '''
 
 # Restart my_app, connecting to supervisord with credentials and server URL.
 - supervisorctl: name=my_app state=restarted username=test password=testpass server_url=http://localhost:9001
+
+# Restart all apps, reading supervisorctl configuration from a specified file.
+- supervisorctl: name=all state=restarted config=/var/opt/my_project/supervisord.conf
 '''
 
 
@@ -196,6 +199,8 @@ def main():
     if state == 'restarted':
         rc, out, err = run_supervisorctl('update', check_rc=True)
         processes = get_matched_processes()
+        if name == 'all':
+            processes.append(('all', 'RUNNING'))
         if len(processes) == 0:
             module.fail_json(name=name, msg="ERROR (no such process)")
 
@@ -230,11 +235,15 @@ def main():
             module.fail_json(msg=out, name=name, state=state)
 
     if state == 'started':
+        if name == 'all':
+            processes.append(('all', 'STOPPED'))
         if len(processes) == 0:
             module.fail_json(name=name, msg="ERROR (no such process)")
         take_action_on_processes(processes, lambda s: s not in ('RUNNING', 'STARTING'), 'start', 'started')
 
     if state == 'stopped':
+        if name == 'all':
+            processes.append(('all', 'RUNNING'))
         if len(processes) == 0:
             module.fail_json(name=name, msg="ERROR (no such process)")
         take_action_on_processes(processes, lambda s: s in ('RUNNING', 'STARTING'), 'stop', 'stopped')
